@@ -1,0 +1,2 @@
+def bestdeal():
+    pass
