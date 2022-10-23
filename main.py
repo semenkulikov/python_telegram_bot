@@ -6,16 +6,22 @@ from history import history
 from highprice import highprice
 from lowprice import lowprice
 
-bot = telebot.TeleBot('5613660861:AAEeIYwKacK4BouKJYWFjt0TtznCCVd1YuI')
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv(dotenv_path='.env')
+bot = telebot.TeleBot(os.getenv('TOKEN'))
 
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
     bot.send_message(message.chat.id,
-                     'Начинаем! Я - бот для поиска отелей! Для того, чтобы узнать все мои команды, введи команду /help.')
+                     'Начинаем! Я - бот для поиска отелей! Для того, чтобы узнать меня получше, введи команду /help.'
+                     )
 
 
-@bot.message_handler(commands=['help', 'Привет', 'Салям алейкум', 'Hello world'])
+@bot.message_handler(commands=['help'])
 def help(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     lowprice_command = types.KeyboardButton(text='/lowprice')
@@ -27,7 +33,8 @@ def help(message):
     bot.send_message(
         message.chat.id,
         f"""
-Привет, {message.from_user.first_name} {message.from_user.last_name}!
+Привет, {message.from_user.first_name} {message.from_user.last_name if message.from_user.last_name is not None else ''}!
+
 Вот мои команды:
 1. Узнать топ самых дешёвых отелей в городе (команда /lowprice).
 2. Узнать топ самых дорогих отелей в городе (команда /highprice).
@@ -41,7 +48,9 @@ def help(message):
 
 @bot.message_handler(content_types=['text'])
 def work(message):
-    if message.text == '/bestdeal':
+    if message.text.lower() in ['привет', 'салям алейкум', 'hello world', 'hello', 'hi']:
+        bot.send_message(message.chat.id, 'И тебе привет!')
+    elif message.text == '/bestdeal':
         bestdeal()
     elif message.text == '/highprice':
         highprice()
@@ -50,7 +59,7 @@ def work(message):
     elif message.text == '/lowprice':
         lowprice()
     else:
-        bot.send_message(message.chat.id, 'Неизвестная команда!')
+        bot.send_message(message.chat.id, 'Я тебя не понимаю ((')
 
 
 bot.polling(none_stop=True)
