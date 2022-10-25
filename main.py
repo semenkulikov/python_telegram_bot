@@ -49,7 +49,7 @@ def help(message):
 @bot.message_handler(content_types=['text'])
 def work(message):
     if message.text.lower() in ['привет', 'салям алейкум', 'hello world', 'hello', 'hi']:
-        bot.send_message(message.chat.id, 'И тебе привет!')
+        help(message)
     elif message.text == '/bestdeal':
         bestdeal()
     elif message.text == '/highprice':
@@ -57,7 +57,10 @@ def work(message):
     elif message.text == '/history':
         history()
     elif message.text == '/lowprice':
-        lowprice()
+        lowprice(message)
+        # bot.send_message(message.chat.id, 'Функция отработала!')
+        # Вот здесь lowprice заканчивает сразу после выполнения send_message
+        # Как это исправить?
     else:
         bot.send_message(message.chat.id, 'Я тебя не понимаю ((')
 
