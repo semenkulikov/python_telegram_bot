@@ -17,7 +17,7 @@ def get_name(message: Message) -> None:
         bot.set_state(message.from_user.id, UserInfoState.age, message.chat.id)
 
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            data['name'] = message.text
+            data['name'] = message.text.title()
     else:
         bot.send_message(message.from_user.id, 'Имя может содержать только буквы и состоит из одного слова')
 
@@ -44,7 +44,7 @@ def get_country(message: Message) -> None:
         bot.set_state(message.from_user.id, UserInfoState.city, message.chat.id)
 
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            data['country'] = message.text
+            data['country'] = message.text.title()
     else:
         bot.send_message(message.from_user.id, 'Такой страны не существует')
 
@@ -58,7 +58,7 @@ def get_city(message: Message) -> None:
         bot.set_state(message.from_user.id, UserInfoState.phone_number, message.chat.id)
 
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            data['city'] = message.text
+            data['city'] = message.text.title()
     else:
         bot.send_message(message.from_user.id, 'Такого города не существует')
 
@@ -76,5 +76,6 @@ def get_contact(message: Message) -> None:
                    f'Город: {data["city"]}\n' \
                    f'Телефон: {data["phone_number"]}\n'
             bot.send_message(message.from_user.id, text)
+            bot.set_state(message.from_user.id, None, message.chat.id)
     else:
         bot.send_message(message.from_user.id, 'Чтобы отправить контактную информацию, нажми на кнопку')
