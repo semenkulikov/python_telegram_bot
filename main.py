@@ -1,5 +1,5 @@
 from loader import bot
-import handlers  # Что делать с этим импортом? Зачем он вообще нужен? Куда его девать?
+import handlers  # noqa
 from telebot.custom_filters import StateFilter
 from utils.set_bot_commands import set_default_commands
 
