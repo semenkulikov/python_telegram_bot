@@ -1,15 +1,15 @@
-import json
-
 from handlers.custom_heandlers.request_to_api import request_to_api
 from dotenv import load_dotenv
 from loader import bot
 from states.low_price_info import HotelLowPriceState
-from telebot.types import Message
+from telebot.types import Message, InputMediaPhoto
 from keyboards.inline.cities_list import city_markup
 from typing import List, Dict, Any
 from datetime import date
-import re
 
+import telebot.apihelper
+import re
+import json
 import os
 
 load_dotenv()
@@ -44,7 +44,7 @@ def request_by_city(city_name: str) -> List:
 
         return cities
 
-    except (LookupError, TypeError):
+    except (LookupError, TypeError, AttributeError):
         raise ValueError('Упс! Что-то пошло не так. Попробуй еще раз')
 
 
@@ -92,13 +92,38 @@ def request_hotels(message: Message):
                     'price': price,
                     'total_price': total_price,
                     'rating': hotel['guestReviews']['rating'],
-                    'linc': hotel['optimizedThumbUrls']['srpDesktop']
+                    'linc': f'https://www.hotels.com/ho{hotel["id"]}'
                 }
 
             return data
 
-        except (LookupError, TypeError):
+        except (LookupError, TypeError, AttributeError):
             raise ValueError('Упс! Что-то пошло не так. Попробуй еще раз')
+
+
+def requests_photos(hotel_id, max_photos) -> List[str]:
+    """ Функция, формирует и обрабатывает третий запрос к фотографиям отеля, возвращает ссылки на них """
+    url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
+    querystring = {"id": hotel_id}
+    headers = {
+        "X-RapidAPI-Key": os.getenv("RAPID_API_KEY"),
+        "X-RapidAPI-Host": "hotels4.p.rapidapi.com"
+    }
+
+    try:
+        response = json.loads(request_to_api(url, querystring=querystring, headers=headers).text)
+        photos_list = list()
+        for index in response['hotelImages']:
+            if max_photos:
+                base_url = index['baseUrl']
+                linc = re.sub('{size}', 'z', base_url)
+                photos_list.append(linc)
+                max_photos -= 1
+            else:
+                break
+        return photos_list
+    except (LookupError, TypeError, AttributeError):
+        raise ValueError('Упс! Что-то пошло не так. Попробуй еще раз')
 
 
 @bot.message_handler(commands=['lowprice'])
@@ -136,7 +161,8 @@ def check_city(call) -> None:
         hotels_data['city_id'] = call.data
         hotels_data['max_photos'] = 10
 
-    bot.send_message(call.message.chat.id, 'Окей! Когда заезжаем в отель? Укажи дату в формате год-месяц-день')
+    bot.send_message(call.message.chat.id,
+                     'Окей! Когда заезжаем в отель?\nУкажи дату в формате {год} - {месяц} - {день}')
     bot.set_state(call.message.chat.id, HotelLowPriceState.check_in)
 
 
@@ -144,7 +170,7 @@ def check_city(call) -> None:
 def check_in(message: Message) -> None:
     """ Хендлер проверки даты въезда в отель """
     try:
-        year, month, day = re.split(",|-|:| , | : | | - ", message.text)
+        year, month, day = re.split(",|-|:|' , '|' : '| |' - '", message.text)
         start_date = date(year=int(year), month=int(month), day=int(day))
         if start_date < date.today():
             raise ArithmeticError('Некорректная дата!')
@@ -158,7 +184,7 @@ def check_in(message: Message) -> None:
     except TypeError:
         bot.send_message(message.from_user.id, 'Дата состоит из чисел, а ты что написал?')
     except ValueError:
-        bot.send_message(message.from_user.id, 'Чего-то не хватает! Перепроверь формат')
+        bot.send_message(message.from_user.id, 'Что-то не так с датой! Перепроверь формат')
     except ArithmeticError as exc:
         bot.send_message(message.from_user.id, exc)
     except Exception:
@@ -171,7 +197,7 @@ def check_out(message: Message) -> None:
     try:
 
         with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
-            year, month, day = re.split(",|-|:| , | : | | - ", message.text)
+            year, month, day = re.split(",|-|:|' , '|' : '| |' - '", message.text)
             end_date = date(year=int(year), month=int(month), day=int(day))
             if end_date < date.today():
                 raise ArithmeticError('Некорректная дата!')
@@ -193,7 +219,7 @@ def check_out(message: Message) -> None:
     except TypeError:
         bot.send_message(message.from_user.id, 'Дата состоит из чисел, а ты что написал?')
     except ValueError:
-        bot.send_message(message.from_user.id, 'Чего-то не хватает! Перепроверь формат')
+        bot.send_message(message.from_user.id, 'Что-то не так с датой! Перепроверь формат')
     except ArithmeticError as exc:
         bot.send_message(message.from_user.id, exc)
     except Exception:
@@ -220,19 +246,18 @@ def get_count_hotel(message: Message) -> None:
 def get_is_photos(message: Message) -> None:
     """ Хендлер для выяснения необходимости загрузки фотографий """
     if message.text.isalpha():
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
-            if message.text.lower() == 'да':
-                bot.send_message(message.from_user.id,
-                                 f'Хорошо, а сколько фоток? Только не больше {hotels_data["max_photos"]}')
-                bot.set_state(message.from_user.id, HotelLowPriceState.count_photos, message.chat.id)
-            elif message.text.lower() == 'нет':
-                bot.send_message(message.from_user.id,
-                                 'Без проблем! Подожди, идет загрузка ...')
-                bot.set_state(message.from_user.id, HotelLowPriceState.info)
-                info_output(message)
-            else:
-                bot.send_message(message.from_user.id,
-                                 f'Я тебя не понимаю. Ответь прямо: да или нет?')
+        if message.text.lower() == 'да':
+            bot.send_message(message.from_user.id,
+                             f'Хорошо, а сколько фотографий для каждого отеля? Только не больше 10')
+            bot.set_state(message.from_user.id, HotelLowPriceState.count_photos, message.chat.id)
+        elif message.text.lower() == 'нет':
+            bot.send_message(message.from_user.id,
+                             'Без проблем! Подожди, идет загрузка ...')
+            bot.set_state(message.from_user.id, HotelLowPriceState.info)
+            info_output(message)
+        else:
+            bot.send_message(message.from_user.id,
+                             f'Я тебя не понимаю. Ответь прямо: да или нет?')
     else:
         bot.send_message(message.from_user.id, 'Так да или нет?')
 
@@ -241,21 +266,18 @@ def get_is_photos(message: Message) -> None:
 def get_count_photos(message: Message) -> None:
     """ Хендлер для получения количества фотографий """
     if message.text.isdigit():
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
-            if int(message.text) <= hotels_data['max_photos']:
-                hotels_data['count_photos'] = int(message.text)
-                bot.send_message(message.from_user.id, 'Подожди ... Идет загрузка фотографий ...')
-                bot.set_state(message.from_user.id, HotelLowPriceState.info, message.chat.id)
-                info_output(message)
-            else:
-                bot.send_message(message.from_user.id,
-                                 f'Я не нашел столько фотографий! Максимум - {hotels_data["max_photos"]}')
+        if int(message.text) <= 10:
+            bot.send_message(message.from_user.id, 'Подожди ... Идет загрузка фотографий ...')
+            bot.set_state(message.from_user.id, HotelLowPriceState.info, message.chat.id)
+            info_output(message, count_photos=int(message.text))
+        else:
+            bot.send_message(message.from_user.id, 'Не могу загрузить столько! Максимум - 10')
     else:
         bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
 
 
 @bot.message_handler(state=HotelLowPriceState.info)
-def info_output(message: Message) -> None:
+def info_output(message: Message, count_photos=0) -> None:
     """ Хендлер для вывода информации """
     try:
         data = request_hotels(message)
@@ -268,9 +290,29 @@ def info_output(message: Message) -> None:
             text += f'На сколько дней бронируем: {hotel["total_days"]}\n' \
                     f'Цена за ночь: {int(hotel["price"]):,d} рублей\n' \
                     f'Суммарная цена: {hotel["total_price"]:,d} рублей\n' \
-                    'Рейтинг: {hotel["rating"]}\n' \
+                    f'Рейтинг: {hotel["rating"]}\n' \
                     f'Ссылка на отель: {hotel["linc"]}\n'
-            bot.send_message(message.from_user.id, text)
+
+            with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
+                if count_photos:
+                    data = requests_photos(
+                        hotel_id=hotel["hotel_id"],
+                        max_photos=count_photos
+                    )
+                    photos = [InputMediaPhoto(elem) for elem in data]
+                    if len(photos) >= 2:
+                        bot.send_media_group(message.from_user.id, photos)
+                    else:
+                        bot.send_photo(message.from_user.id, photo=data[0])
+                bot.send_message(message.from_user.id, text)
+
             bot.set_state(message.from_user.id, None, message.chat.id)
     except ValueError as exc:
         bot.send_message(message.from_user.id, exc)
+    except telebot.apihelper.ApiException:
+        bot.send_message(message.from_user.id, 'Появилась проблема с интернетом! Попробуй еще раз)')
+        # При ошибке со стороны Telegram возвращаем юзера к состоянию photo_upload
+        bot.send_message(message.from_user.id, 'Надо ли прилагать фотографии к отелям?')
+        bot.set_state(message.from_user.id, HotelLowPriceState.photo_upload)
+    except Exception:
+        bot.send_message(message.from_user.id, 'Технические шоколадки! Не обращай внимания)')
