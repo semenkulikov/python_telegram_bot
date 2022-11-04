@@ -49,7 +49,7 @@ def request_by_city(city_name: str) -> List:
         return cities
 
     except (LookupError, TypeError, AttributeError):
-        raise ValueError('Упс! Что-то пошло не так. Попробуй еще раз')
+        raise ValueError('Упс! Что-то пошло не так. Погоди, сейчас исправлю')
 
 
 def request_hotels(message: Message, sort_order):
@@ -61,7 +61,7 @@ def request_hotels(message: Message, sort_order):
         url = "https://hotels4.p.rapidapi.com/properties/list"
         querystring = {"destinationId": hotels_data['city_id'],
                        "pageNumber": "1",
-                       "pageSize": hotels_data['count_hotels'],
+                       "pageSize": hotels_data['hotels_count'],
                        "checkIn": hotels_data['check_in'],
                        "checkOut": hotels_data['check_out'],
                        "adults1": "1",
@@ -102,7 +102,7 @@ def request_hotels(message: Message, sort_order):
             return data
 
         except (LookupError, TypeError, AttributeError):
-            raise ValueError('Упс! Что-то пошло не так. Попробуй еще раз')
+            raise ValueError('Упс! Что-то пошло не так. Погоди, сейчас исправлю')
 
 
 def requests_photos(hotel_id, max_photos) -> List[str]:
@@ -127,4 +127,4 @@ def requests_photos(hotel_id, max_photos) -> List[str]:
                 break
         return photos_list
     except (LookupError, TypeError, AttributeError):
-        raise ValueError('Упс! Что-то пошло не так. Попробуй еще раз')
+        raise ValueError('Упс! Что-то пошло не так. Погоди, сейчас исправлю')
