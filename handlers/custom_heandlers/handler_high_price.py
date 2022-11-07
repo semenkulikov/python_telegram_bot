@@ -6,6 +6,7 @@ from datetime import date
 from telebot.types import CallbackQuery
 from handlers.custom_heandlers.request_to_api import request_by_city, request_hotels, requests_photos
 from keyboards.inline.create_calendar import create_calendar
+from keyboards.inline.yes_or_no import yes_or_no_markup
 import telebot.apihelper
 import datetime
 
@@ -31,7 +32,7 @@ def get_city(message: Message) -> None:
         bot.send_message(message.from_user.id, exc)
 
 
-@bot.callback_query_handler(func=lambda call: True, state=HotelHighPriceState.check_city)
+@bot.callback_query_handler(func=None, state=HotelHighPriceState.check_city)
 def check_city(call) -> None:
     """
     Обработчик inline кнопок, запоминает id города
@@ -119,7 +120,8 @@ def get_count_hotel(message: Message) -> None:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
             if 1 <= int(message.text) <= 25:
                 hotels_data['hotels_count'] = int(message.text)
-                bot.send_message(message.from_user.id, 'Отлично, а фотографии к ним прилагать? (Да/Нет)')
+                bot.send_message(message.from_user.id, 'Отлично, а фотографии к ним прилагать?',
+                                 reply_markup=yes_or_no_markup())
                 bot.set_state(message.from_user.id, HotelHighPriceState.photo_upload, message.chat.id)
             else:
                 bot.send_message(message.from_user.id,
@@ -128,24 +130,17 @@ def get_count_hotel(message: Message) -> None:
         bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
 
 
-@bot.message_handler(state=HotelHighPriceState.photo_upload)
-def get_is_photos(message: Message) -> None:
-    """ Хендлер для выяснения необходимости загрузки фотографий """
-    if message.text.isalpha():
-        if message.text.lower() == 'да':
-            bot.send_message(message.from_user.id,
-                             f'Хорошо, а сколько фотографий для каждого отеля? Только не больше 10')
-            bot.set_state(message.from_user.id, HotelHighPriceState.count_photos, message.chat.id)
-        elif message.text.lower() == 'нет':
-            bot.send_message(message.from_user.id,
-                             'Без проблем! Подожди, идет загрузка ...')
-            bot.set_state(message.from_user.id, HotelHighPriceState.info)
-            info_output(message)
-        else:
-            bot.send_message(message.from_user.id,
-                             f'Я тебя не понимаю. Ответь прямо: да или нет?')
-    else:
-        bot.send_message(message.from_user.id, 'Так да или нет?')
+@bot.callback_query_handler(func=None, state=HotelHighPriceState.photo_upload)
+def get_is_photos(call) -> None:
+    """ Коллбэк для обработки да/нет Inline кнопок """
+    if call.data == 'Да':
+        bot.send_message(call.message.chat.id,
+                         f'Хорошо, а сколько фотографий для каждого отеля? Только не больше 10')
+        bot.set_state(call.message.chat.id, HotelHighPriceState.count_photos, call.message.chat.id)
+    elif call.data == 'Нет':
+        bot.send_message(call.message.chat.id,
+                         'Без проблем! Подожди, идет загрузка ...\nНапиши что-нибудь')
+        bot.set_state(call.message.chat.id, HotelHighPriceState.info)
 
 
 @bot.message_handler(state=HotelHighPriceState.count_photos)
@@ -211,7 +206,6 @@ def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
             info_output(message, count_photos=count_photos, stop_iter=stop_iter)
         except telebot.apihelper.ApiException:
             bot.send_message(message.from_user.id, 'Появилась проблема с интернетом! Попробуй еще раз)')
-            # При ошибке со стороны Telegram возвращаем юзера к состоянию photo_upload
             bot.send_message(message.from_user.id, 'Надо ли прилагать фотографии к отелям?')
             bot.set_state(message.from_user.id, HotelHighPriceState.photo_upload)
         except Exception:

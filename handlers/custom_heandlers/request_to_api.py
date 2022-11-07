@@ -95,7 +95,7 @@ def request_hotels(message: Message, sort_order):
                     'total_days': total_days,
                     'price': price,
                     'total_price': total_price,
-                    'rating': hotel['guestReviews']['rating'],
+                    'rating': hotel['guestReviews']['rating'] if 'guestReviews' in hotel.keys() else 'Нет',
                     'linc': f'https://www.hotels.com/ho{hotel["id"]}'
                 }
 
