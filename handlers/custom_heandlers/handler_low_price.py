@@ -170,18 +170,24 @@ def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
     if stop_iter:
         try:
             data = request_hotels(message, sort_order="PRICE")
-            hotels_count = 0
+            hotel_count = 0
             for name, hotel in data.items():
-                hotels_count += 1
+                hotel_count += 1
                 text = f'Имя отеля: {name}\n' \
                        f'Id отеля: {hotel["hotel_id"]}\n' \
                        f'Адрес: {hotel["address"]}\n'
                 for distance in hotel['distance']:
                     text += f'Расстояние от {distance[0]} - {distance[1]}\n'
-                text += f'На сколько дней бронируем: {hotel["total_days"].days}\n' \
-                        f'Цена за ночь: {int(hotel["price"]):,d} рублей\n' \
-                        f'Суммарная цена: {hotel["total_price"]:,d} рублей\n' \
-                        f'Рейтинг: {hotel["rating"]}\n' \
+
+                text += f'На сколько дней бронируем: {hotel["total_days"].days}\n'
+
+                text += f'Цена за ночь: {int(hotel["price"]):,d} рублей\n' \
+                        if hotel['price'] is not None else ''
+
+                text += f'Суммарная цена: {hotel["total_price"]:,d} рублей\n' \
+                    if hotel['price'] is not None else ''
+
+                text += f'Рейтинг: {hotel["rating"]}\n' \
                         f'Ссылка на отель: {hotel["linc"]}\n'
 
                 if count_photos:
@@ -195,9 +201,12 @@ def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
                     else:
                         bot.send_photo(message.from_user.id, photo=data[0])
                 bot.send_message(message.from_user.id, text)
-                bot.send_message(message.from_user.id, f'Топ {hotels_count}')
+                bot.send_message(message.from_user.id, f'Топ {hotel_count}')
 
-            bot.send_message(message.from_user.id, 'Готово!')
+            if data:
+                bot.send_message(message.from_user.id, 'Готово!')
+            else:
+                bot.send_message(message.from_user.id, 'К сожалению, такие отели не найдены ((')
             bot.set_state(message.from_user.id, None, message.chat.id)
 
         except ValueError as exc:
@@ -206,7 +215,6 @@ def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
             info_output(message, count_photos=count_photos, stop_iter=stop_iter)
         except telebot.apihelper.ApiException:
             bot.send_message(message.from_user.id, 'Появилась проблема с интернетом! Попробуй еще раз)')
-            # При ошибке со стороны Telegram возвращаем юзера к состоянию photo_upload
             bot.send_message(message.from_user.id, 'Надо ли прилагать фотографии к отелям?')
             bot.set_state(message.from_user.id, HotelLowPriceState.photo_upload)
         except Exception:
@@ -217,3 +225,4 @@ def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
     else:
         bot.send_message(message.from_user.id,
                          'Прости, но проблему исправить не удалось ((\nПроверь соединение с интернетом')
+        bot.set_state(message.from_user.id, None, message.chat.id)

@@ -1,5 +1,5 @@
 from loader import bot, calendar, calendar_1_callback
-from states.highprice_info import HotelHighPriceState
+from states.bestdeal_info import HotelBestPriceState
 from telebot.types import Message, InputMediaPhoto
 from keyboards.inline.cities_list import city_markup
 from datetime import date
@@ -11,14 +11,14 @@ import telebot.apihelper
 import datetime
 
 
-@bot.message_handler(commands=['highprice'])
+@bot.message_handler(commands=['bestdeal'])
 def send_lowprice(message: Message) -> None:
-    bot.set_state(message.from_user.id, HotelHighPriceState.city, message.chat.id)
+    bot.set_state(message.from_user.id, HotelBestPriceState.city, message.chat.id)
     bot.send_message(message.from_user.id,
                      f'Привет, {message.from_user.first_name}, напиши город, где будем искать отели')
 
 
-@bot.message_handler(state=HotelHighPriceState.city)
+@bot.message_handler(state=HotelBestPriceState.city)
 def get_city(message: Message) -> None:
     """ Хендлер, ловит город и кидает кнопки для уточнения """
     try:
@@ -27,12 +27,12 @@ def get_city(message: Message) -> None:
 
         bot.send_message(message.from_user.id,
                          f'Уточни, пожалуйста:', reply_markup=city_markup(answer))
-        bot.set_state(message.from_user.id, HotelHighPriceState.check_city, message.chat.id)
+        bot.set_state(message.from_user.id, HotelBestPriceState.check_city, message.chat.id)
     except ValueError as exc:
         bot.send_message(message.from_user.id, exc)
 
 
-@bot.callback_query_handler(func=None, state=HotelHighPriceState.check_city)
+@bot.callback_query_handler(func=None, state=HotelBestPriceState.check_city)
 def check_city(call) -> None:
     """
     Обработчик inline кнопок, запоминает id города
@@ -46,14 +46,42 @@ def check_city(call) -> None:
         hotels_data['city_id'] = call.data
 
     bot.send_message(call.message.chat.id,
-                     'Окей! Когда заезжаем в отель?')
-    create_calendar(call.message)
-    bot.set_state(call.message.chat.id, HotelHighPriceState.check_in)
+                     'Окей! Укажи минимальную цену за ночь')
+    bot.set_state(call.message.chat.id, HotelBestPriceState.price_min)
+
+
+@bot.message_handler(state=HotelBestPriceState.price_min)
+def price_min(message: Message) -> None:
+    try:
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
+            if int(message.text) >= 0:
+                hotels_data['price_min'] = int(message.text)
+                bot.send_message(message.from_user.id, 'Хорошо, теперь укажи максимальную цену')
+                bot.set_state(message.from_user.id, HotelBestPriceState.price_max, message.chat.id)
+            else:
+                bot.send_message(message.from_user.id, 'Некорректная цена!')
+    except (TypeError, ValueError):
+        bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
+
+
+@bot.message_handler(state=HotelBestPriceState.price_max)
+def price_max(message: Message) -> None:
+    try:
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
+            if int(message.text) > hotels_data['price_min']:
+                hotels_data['price_max'] = int(message.text)
+                bot.send_message(message.from_user.id, 'Окей! Когда заезжаем в отель?')
+                create_calendar(message)
+                bot.set_state(message.from_user.id, HotelBestPriceState.check_in, message.chat.id)
+            else:
+                bot.send_message(message.from_user.id, 'Некорректная цена!')
+    except (TypeError, ValueError):
+        bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
 
 
 @bot.callback_query_handler(
     func=lambda call: call.data.startswith(calendar_1_callback.prefix),
-    state=HotelHighPriceState.check_in
+    state=HotelBestPriceState.check_in
 )
 def callback_inline(call: CallbackQuery):
     """
@@ -73,7 +101,7 @@ def callback_inline(call: CallbackQuery):
                 hotels_data['check_in'] = date(my_date.year, my_date.month, my_date.day)
                 bot.send_message(call.message.chat.id, 'Теперь выбери дату выезда')
                 create_calendar(call.message, hotels_data['check_in'])
-                bot.set_state(call.message.chat.id, HotelHighPriceState.check_out)
+                bot.set_state(call.message.chat.id, HotelBestPriceState.check_out)
             else:
                 bot.send_message(call.message.chat.id, 'Некорректная дата! Попробуй еще раз')
                 create_calendar(call.message)
@@ -83,7 +111,7 @@ def callback_inline(call: CallbackQuery):
 
 @bot.callback_query_handler(
     func=lambda call: call.data.startswith(calendar_1_callback.prefix),
-    state=HotelHighPriceState.check_out
+    state=HotelBestPriceState.check_out
 )
 def callback_inline(call: CallbackQuery):
     """
@@ -104,7 +132,7 @@ def callback_inline(call: CallbackQuery):
                 hotels_data['check_out'] = end_date
                 hotels_data['total_days'] = end_date - hotels_data['check_in']
                 bot.send_message(call.message.chat.id, 'Хорошо, сколько отелей выводить? Только не больше 25')
-                bot.set_state(call.message.chat.id, HotelHighPriceState.count_hotel)
+                bot.set_state(call.message.chat.id, HotelBestPriceState.count_hotel)
             else:
                 bot.send_message(call.message.chat.id, 'Ты выезжаешь из отеля раньше, чем приезжаешь туда!')
                 create_calendar(call.message, hotels_data['check_in'])
@@ -113,7 +141,7 @@ def callback_inline(call: CallbackQuery):
         bot.send_message(call.message.chat.id, 'Выбери дату из календаря')
 
 
-@bot.message_handler(state=HotelHighPriceState.count_hotel)
+@bot.message_handler(state=HotelBestPriceState.count_hotel)
 def get_count_hotel(message: Message) -> None:
     """ Хендлер для получения количества выводимых отелей """
     if message.text.isdigit():
@@ -122,7 +150,7 @@ def get_count_hotel(message: Message) -> None:
                 hotels_data['hotels_count'] = int(message.text)
                 bot.send_message(message.from_user.id, 'Отлично, а фотографии к ним прилагать?',
                                  reply_markup=yes_or_no_markup())
-                bot.set_state(message.from_user.id, HotelHighPriceState.photo_upload, message.chat.id)
+                bot.set_state(message.from_user.id, HotelBestPriceState.photo_upload, message.chat.id)
             else:
                 bot.send_message(message.from_user.id,
                                  f'Я не нашел столько отелей! Максимум - 25')
@@ -130,26 +158,26 @@ def get_count_hotel(message: Message) -> None:
         bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
 
 
-@bot.callback_query_handler(func=None, state=HotelHighPriceState.photo_upload)
+@bot.callback_query_handler(func=None, state=HotelBestPriceState.photo_upload)
 def get_is_photos(call) -> None:
     """ Коллбэк для обработки да/нет Inline кнопок """
     if call.data == 'Да':
         bot.send_message(call.message.chat.id,
                          f'Хорошо, а сколько фотографий для каждого отеля? Только не больше 10')
-        bot.set_state(call.message.chat.id, HotelHighPriceState.count_photos, call.message.chat.id)
+        bot.set_state(call.message.chat.id, HotelBestPriceState.count_photos, call.message.chat.id)
     elif call.data == 'Нет':
         bot.send_message(call.message.chat.id,
                          'Без проблем! Подожди, идет загрузка ...\nНапиши что-нибудь')
-        bot.set_state(call.message.chat.id, HotelHighPriceState.info)
+        bot.set_state(call.message.chat.id, HotelBestPriceState.info)
 
 
-@bot.message_handler(state=HotelHighPriceState.count_photos)
+@bot.message_handler(state=HotelBestPriceState.count_photos)
 def get_count_photos(message: Message) -> None:
     """ Хендлер для получения количества фотографий """
     if message.text.isdigit():
         if int(message.text) <= 10:
             bot.send_message(message.from_user.id, 'Подожди ... Идет загрузка фотографий ...')
-            bot.set_state(message.from_user.id, HotelHighPriceState.info, message.chat.id)
+            bot.set_state(message.from_user.id, HotelBestPriceState.info, message.chat.id)
             info_output(message, count_photos=int(message.text))
         else:
             bot.send_message(message.from_user.id, 'Не могу загрузить столько! Максимум - 10')
@@ -157,7 +185,7 @@ def get_count_photos(message: Message) -> None:
         bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
 
 
-@bot.message_handler(state=HotelHighPriceState.info)
+@bot.message_handler(state=HotelBestPriceState.info)
 def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
     """
     Хендлер для вывода информации
@@ -169,7 +197,7 @@ def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
     """
     if stop_iter:
         try:
-            data = request_hotels(message, sort_order="PRICE_HIGHEST_FIRST")
+            data = request_hotels(message, sort_order="DISTANCE_FROM_LANDMARK")
             hotel_count = 0
             for name, hotel in data.items():
                 hotel_count += 1
@@ -216,7 +244,7 @@ def info_output(message: Message, count_photos=0, stop_iter=5) -> None:
         except telebot.apihelper.ApiException:
             bot.send_message(message.from_user.id, 'Появилась проблема с интернетом! Попробуй еще раз)')
             bot.send_message(message.from_user.id, 'Надо ли прилагать фотографии к отелям?')
-            bot.set_state(message.from_user.id, HotelHighPriceState.photo_upload)
+            bot.set_state(message.from_user.id, HotelBestPriceState.photo_upload)
         except Exception:
             bot.send_message(message.from_user.id,
                              'Технические шоколадки! Не обращай внимания) Сейчас пытаюсь исправить')
