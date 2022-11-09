@@ -64,6 +64,8 @@ def request_hotels(message: Message, sort_order):
                        "pageSize": hotels_data['hotels_count'],
                        "checkIn": hotels_data['check_in'],
                        "checkOut": hotels_data['check_out'],
+                       "priceMin": hotels_data['price_min'] if 'price_min' in hotels_data.keys() else None,
+                       "priceMax": hotels_data['price_max'] if 'price_max' in hotels_data.keys() else None,
                        "adults1": "1",
                        "sortOrder": sort_order,
                        "locale": "ru_RU",
@@ -84,9 +86,9 @@ def request_hotels(message: Message, sort_order):
                 for index in hotel['landmarks']:
                     distances.append([index['label'], index['distance']])
 
-                price = hotel['ratePlan']['price']['exactCurrent']  # Цена за одну ночь
+                price = hotel['ratePlan']['price']['exactCurrent'] if 'ratePlan' in hotel.keys() else None
                 total_days = hotels_data['total_days']
-                total_price = round(price * total_days.days)  # Цена за все
+                total_price = round(price * total_days.days) if isinstance(price, float) else None
 
                 data[name] = {
                     'hotel_id': hotel['id'],
@@ -95,7 +97,7 @@ def request_hotels(message: Message, sort_order):
                     'total_days': total_days,
                     'price': price,
                     'total_price': total_price,
-                    'rating': hotel['guestReviews']['rating'],
+                    'rating': hotel['guestReviews']['rating'] if 'guestReviews' in hotel.keys() else 'Нет',
                     'linc': f'https://www.hotels.com/ho{hotel["id"]}'
                 }
 
