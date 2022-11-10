@@ -1,7 +1,7 @@
 from telebot.handler_backends import State, StatesGroup
 
 
-class HotelLowPriceState(StatesGroup):
+class HotelPriceState(StatesGroup):
     city = State()
     check_city = State()
     check_in = State()

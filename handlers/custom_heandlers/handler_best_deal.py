@@ -107,6 +107,7 @@ def callback_inline(call: CallbackQuery):
                 create_calendar(call.message)
     elif action == 'CANCEL':
         bot.send_message(call.message.chat.id, 'Выбери дату из календаря')
+        create_calendar(call.message)
 
 
 @bot.callback_query_handler(
@@ -139,6 +140,7 @@ def callback_inline(call: CallbackQuery):
 
     elif action == 'CANCEL':
         bot.send_message(call.message.chat.id, 'Выбери дату из календаря')
+        create_calendar(call.message)
 
 
 @bot.message_handler(state=HotelBestPriceState.count_hotel)
