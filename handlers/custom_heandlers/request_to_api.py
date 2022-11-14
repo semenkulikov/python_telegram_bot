@@ -44,7 +44,7 @@ def request_by_city(city_name: str) -> List:
                                'destination_id': dest['destinationId']
                                })
         else:
-            raise ValueError('К сожалению, такой город не найден, попробуй еще раз)')
+            raise PermissionError('К сожалению, такой город не найден, попробуй еще раз)')
 
         return cities
 
@@ -69,7 +69,9 @@ def request_hotels(message: Message, sort_order):
                        "adults1": "1",
                        "sortOrder": sort_order,
                        "locale": "ru_RU",
-                       "currency": "RUB"}
+                       "currency": "RUB",
+                       "landmarkIds": f'{hotels_data["distance_min"]}, {hotels_data["distance_max"]}'
+                       if 'distance_min' and 'distance_max' in hotels_data.keys() else None}
         headers = {
             "X-RapidAPI-Key": os.getenv("RAPID_API_KEY"),
             "X-RapidAPI-Host": "hotels4.p.rapidapi.com"

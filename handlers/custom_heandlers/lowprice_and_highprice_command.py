@@ -24,17 +24,22 @@ def send_lowprice(message: Message) -> None:
 
 
 @bot.message_handler(state=HotelPriceState.city)
-def get_city(message: Message) -> None:
+def get_city(message: Message, stop_iter=5) -> None:
     """ Хендлер, ловит город и кидает кнопки для уточнения """
-    try:
-        city = message.text
-        answer = request_by_city(city)
+    if stop_iter:
+        try:
+            city = message.text
+            answer = request_by_city(city)
 
-        bot.send_message(message.from_user.id,
-                         f'Уточни, пожалуйста:', reply_markup=city_markup(answer))
-        bot.set_state(message.from_user.id, HotelPriceState.check_city, message.chat.id)
-    except ValueError as exc:
-        bot.send_message(message.from_user.id, exc)
+            bot.send_message(message.from_user.id,
+                             f'Уточни, пожалуйста:', reply_markup=city_markup(answer))
+            bot.set_state(message.from_user.id, HotelPriceState.check_city, message.chat.id)
+        except ValueError as exc:
+            bot.send_message(message.from_user.id, exc)
+            stop_iter -= 1
+            get_city(message, stop_iter=stop_iter)
+        except PermissionError as exc:
+            bot.send_message(message.from_user.id, exc)
 
 
 @bot.callback_query_handler(func=None, state=HotelPriceState.check_city)
@@ -74,7 +79,7 @@ def callback_inline(call: CallbackQuery):
             text=f"Ты выбрал эту дату: {my_date.strftime('%d.%m.%Y')}"
         )
         with bot.retrieve_data(call.message.chat.id, call.message.chat.id) as hotels_data:
-            if int(day) >= int(datetime.date.today().day):
+            if datetime.date(int(year), int(month), int(day)) >= datetime.date.today():
                 hotels_data['check_in'] = date(my_date.year, my_date.month, my_date.day)
                 bot.send_message(call.message.chat.id, 'Теперь выбери дату выезда')
                 create_calendar(call.message, hotels_data['check_in'])
@@ -105,7 +110,7 @@ def callback_inline(call: CallbackQuery):
             text=f"Ты выбрал эту дату: {my_date.strftime('%d.%m.%Y')}"
         )
         with bot.retrieve_data(call.message.chat.id, call.message.chat.id) as hotels_data:
-            if int(day) >= int(hotels_data['check_in'].day):
+            if datetime.date(int(year), int(month), int(day)) >= hotels_data['check_in']:
                 end_date = date(my_date.year, my_date.month, my_date.day)
                 hotels_data['check_out'] = end_date
                 hotels_data['total_days'] = end_date - hotels_data['check_in']
