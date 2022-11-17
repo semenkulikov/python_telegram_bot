@@ -1,5 +1,4 @@
 from . import survey
 from . import request_to_api
-from . import handler_low_price
-from . import handler_high_price
+from . import lowprice_and_highprice_command
 from . import handler_best_deal
