@@ -52,12 +52,12 @@ def request_by_city(city_name: str) -> List:
         raise ValueError('Упс! Что-то пошло не так. Погоди, сейчас исправлю')
 
 
-def request_hotels(message: Message, sort_order):
+def request_hotels(user_id, chat_id, sort_order):
     """
     Функция для обработки второго запроса по отелям. Возвращает словарь, где ключ - имя отеля,
     значение - словарь с такими ключами - [id, адрес, расстояние от центра, цена, суммарная цена, рейтинг, ссылка]
     """
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
+    with bot.retrieve_data(user_id, chat_id) as hotels_data:
         url = "https://hotels4.p.rapidapi.com/properties/list"
         querystring = {"destinationId": hotels_data['city_id'],
                        "pageNumber": "1",
