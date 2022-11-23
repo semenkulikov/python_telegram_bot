@@ -1,12 +1,12 @@
 from telebot.types import Message, InputMediaPhoto
-from handlers.custom_heandlers.request_to_api import request_hotels, requests_photos
+from handlers.custom_heandlers.work.request_to_api import request_hotels, requests_photos
 from loader import bot
-from states.bestdeal_info import HotelBestPriceState
-from states.lowprice_info import HotelLowPriceState
-from states.highprice_info import HotelHighPriceState
+from states.hotel_info import HotelPriceState
+
+from handlers.custom_heandlers.work import dbworker
 
 
-@bot.message_handler(state=[HotelBestPriceState.info, HotelLowPriceState.info, HotelHighPriceState.info])
+@bot.message_handler(state=HotelPriceState.info)
 def get_search_results(message: Message, count_photos=0, stop_iter=5, sort_order="PRICE", call_chat_id=None) -> None:
     """
     Хендлер для вывода информации
@@ -38,6 +38,14 @@ def get_search_results(message: Message, count_photos=0, stop_iter=5, sort_order
                     text += f'Расстояние от {distance[0]} - {distance[1]}\n'
 
                 with bot.retrieve_data(user_id, chat_id) as hotels_data:
+
+                    # dbworker.set_history(
+                    #     (hotels_data['chat_id'],
+                    #      hotels_data['datetime'],
+                    #      hotels_data['city'],
+                    #      hotels_data['command'])
+                    # )
+
                     text += f'Диапазон цен: от {hotels_data["price_min"]} до {hotels_data["price_max"]}\n' \
                         if "price_min" in hotels_data.keys() else ''
 

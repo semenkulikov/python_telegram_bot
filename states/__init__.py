@@ -1,3 +1,2 @@
 from . import contact_information
-from . import lowprice_info
-from . import bestdeal_info
+from . import hotel_info
