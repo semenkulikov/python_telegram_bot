@@ -4,7 +4,6 @@ import json
 import os
 from dotenv import load_dotenv
 from loader import bot
-from telebot.types import Message
 import re
 
 load_dotenv()
@@ -27,6 +26,7 @@ def request_by_city(city_name: str) -> List:
 
     :return: список всех найденных мест
     """
+
     url = "https://hotels4.p.rapidapi.com/locations/v2/search"
     querystring = {"query": city_name, "locale": "ru_RU", "currency": "RUB"}
     headers = {
@@ -44,7 +44,7 @@ def request_by_city(city_name: str) -> List:
                                'destination_id': dest['destinationId']
                                })
         else:
-            raise PermissionError('К сожалению, такой город не найден, попробуй еще раз)')
+            raise PermissionError('К сожалению, такой город не найден. Напиши другой)')
 
         return cities
 
@@ -90,7 +90,8 @@ def request_hotels(user_id, chat_id, sort_order):
 
                 price = hotel['ratePlan']['price']['exactCurrent'] if 'ratePlan' in hotel.keys() else None
                 total_days = hotels_data['total_days']
-                total_price = round(price * total_days.days) if isinstance(price, float) else None
+                total_price = round(price * total_days.days if total_days.days != 0 else price)\
+                    if isinstance(price, float) else None
 
                 data[name] = {
                     'hotel_id': hotel['id'],
