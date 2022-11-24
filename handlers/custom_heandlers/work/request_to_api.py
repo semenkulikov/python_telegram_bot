@@ -4,7 +4,6 @@ import json
 import os
 from dotenv import load_dotenv
 from loader import bot
-from telebot.types import Message
 import re
 
 load_dotenv()
@@ -27,6 +26,7 @@ def request_by_city(city_name: str) -> List:
 
     :return: список всех найденных мест
     """
+
     url = "https://hotels4.p.rapidapi.com/locations/v2/search"
     querystring = {"query": city_name, "locale": "ru_RU", "currency": "RUB"}
     headers = {
@@ -44,7 +44,7 @@ def request_by_city(city_name: str) -> List:
                                'destination_id': dest['destinationId']
                                })
         else:
-            raise PermissionError('К сожалению, такой город не найден, попробуй еще раз)')
+            raise PermissionError('К сожалению, такой город не найден. Напиши другой)')
 
         return cities
 
@@ -52,12 +52,12 @@ def request_by_city(city_name: str) -> List:
         raise ValueError('Упс! Что-то пошло не так. Погоди, сейчас исправлю')
 
 
-def request_hotels(message: Message, sort_order):
+def request_hotels(user_id, chat_id, sort_order):
     """
     Функция для обработки второго запроса по отелям. Возвращает словарь, где ключ - имя отеля,
     значение - словарь с такими ключами - [id, адрес, расстояние от центра, цена, суммарная цена, рейтинг, ссылка]
     """
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
+    with bot.retrieve_data(user_id, chat_id) as hotels_data:
         url = "https://hotels4.p.rapidapi.com/properties/list"
         querystring = {"destinationId": hotels_data['city_id'],
                        "pageNumber": "1",
@@ -90,7 +90,8 @@ def request_hotels(message: Message, sort_order):
 
                 price = hotel['ratePlan']['price']['exactCurrent'] if 'ratePlan' in hotel.keys() else None
                 total_days = hotels_data['total_days']
-                total_price = round(price * total_days.days) if isinstance(price, float) else None
+                total_price = round(price * total_days.days if total_days.days != 0 else price)\
+                    if isinstance(price, float) else None
 
                 data[name] = {
                     'hotel_id': hotel['id'],

@@ -11,6 +11,5 @@ class HotelBestPriceState(StatesGroup):
     check_in = State()
     check_out = State()
     count_hotel = State()
-    photo_upload = State()
     count_photos = State()
     info = State()
