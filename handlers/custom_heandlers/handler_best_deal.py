@@ -6,14 +6,19 @@ from keyboards.inline.cities_list import city_markup
 from handlers.custom_heandlers.work.request_to_api import request_by_city
 from keyboards.inline.create_calendar import create_calendar
 
+import datetime
+
 
 @bot.message_handler(commands=['bestdeal'])
 def send_lowprice(message: Message) -> None:
-    bot.set_state(message.from_user.id, HotelBestPriceState.city, message.chat.id)
+    bot.set_state(message.from_user.id, HotelPriceState.city, message.chat.id)
     bot.send_message(message.from_user.id,
                      f'Привет, {message.from_user.first_name}, напиши город, где будем искать отели')
     with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
         hotels_data['command'] = message.text
+        date = datetime.datetime.now()
+        hotels_data['date'] = f"{date.date().strftime('%d.%m.%Y')} {date.time()}"
+        hotels_data['chat_id'] = message.chat.id
 
 
 @bot.message_handler(state=HotelBestPriceState.city)
