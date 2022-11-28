@@ -27,60 +27,78 @@ def get_search_results(message: Message, count_photos=0, stop_iter=5, sort_order
 
     if stop_iter:
         try:
-            data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order)
-            hotel_count = 0
-            for name, hotel in data.items():
-                hotel_count += 1
-                text = f'Имя отеля: {name}\n' \
-                       f'Id отеля: {hotel["hotel_id"]}\n' \
-                       f'Адрес: {hotel["address"]}\n'
-                for distance in hotel['distance']:
-                    text += f'Расстояние от {distance[0]} - {distance[1]}\n'
+            with bot.retrieve_data(user_id, chat_id) as hotels_data:
+                data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order)
+                hotel_count = 0
 
-                with bot.retrieve_data(user_id, chat_id) as hotels_data:
+                dbworker.set_history((
+                    hotels_data['city_id'],
+                    str(hotels_data['chat_id']),
+                    hotels_data['date'],
+                    hotels_data['city'],
+                    hotels_data['command']
+                ))
 
-                    # dbworker.set_history(
-                    #     (hotels_data['chat_id'],
-                    #      hotels_data['datetime'],
-                    #      hotels_data['city'],
-                    #      hotels_data['command'])
-                    # )
+                for name, hotel in data.items():
+                    hotel_count += 1
+                    text = f'Имя отеля: {name}\n' \
+                           f'Id отеля: {hotel["hotel_id"]}\n' \
+                           f'Адрес: {hotel["address"]}\n'
+                    for distance in hotel['distance']:
+                        text += f'Расстояние от {distance[0]} - {distance[1]}\n'
 
-                    text += f'Диапазон цен: от {hotels_data["price_min"]} до {hotels_data["price_max"]}\n' \
-                        if "price_min" in hotels_data.keys() else ''
+                        text += f'Диапазон цен: от {hotels_data["price_min"]} до {hotels_data["price_max"]}\n' \
+                            if "price_min" in hotels_data.keys() else ''
 
-                    text += f'Диапазон расстояний: от {hotels_data["distance_min"]} до {hotels_data["distance_max"]}\n'\
-                        if "distance_min" in hotels_data.keys() else ''
+                        text += f'Диапазон расстояний: от {hotels_data["distance_min"]} до ' \
+                                f'{hotels_data["distance_max"]}\n'\
+                            if "distance_min" in hotels_data.keys() else ''
 
-                text += f'На сколько дней бронируем: {hotel["total_days"].days}\n'
+                    text += f'На сколько дней бронируем: {hotel["total_days"].days}\n'
 
-                text += f'Цена за ночь: {int(hotel["price"]):,d} рублей\n' \
-                    if hotel['price'] is not None else ''
+                    text += f'Цена за ночь: {int(hotel["price"]):,d} рублей\n' \
+                        if hotel['price'] is not None else ''
 
-                text += f'Суммарная цена: {hotel["total_price"]:,d} рублей\n' \
-                    if hotel['price'] is not None else ''
+                    text += f'Суммарная цена: {hotel["total_price"]:,d} рублей\n' \
+                        if hotel['price'] is not None else ''
 
-                text += f'Рейтинг: {hotel["rating"]}\n' \
-                        f'Ссылка на отель: {hotel["linc"]}\n'
+                    text += f'Рейтинг: {hotel["rating"]}\n' \
+                            f'Ссылка на отель: {hotel["linc"]}\n'
 
-                if count_photos:
-                    data = requests_photos(
-                        hotel_id=hotel["hotel_id"],
-                        max_photos=count_photos
-                    )
-                    photos = [InputMediaPhoto(elem) for elem in data]
-                    if len(photos) >= 2:
-                        bot.send_media_group(user_id, photos)
-                    else:
-                        bot.send_photo(user_id, photo=data[0])
-                bot.send_message(user_id, text)
-                bot.send_message(user_id, f'Топ {hotel_count}')
+                    dbworker.set_hotels((
+                        hotels_data['city_id'],
+                        hotel['hotel_id'],
+                        name,
+                        hotel['address'],
+                        hotel['price'],
+                        hotel['linc']
+                    ))
 
-            if data:
-                bot.send_message(user_id, 'Готово!')
-            else:
-                bot.send_message(user_id, 'К сожалению, такие отели не найдены ((')
-            bot.set_state(user_id, None, chat_id)
+                    if count_photos:
+                        data = requests_photos(
+                            hotel_id=hotel["hotel_id"],
+                            max_photos=count_photos
+                        )
+                        photos = [InputMediaPhoto(elem) for elem in data]
+                        if len(photos) >= 2:
+                            bot.send_media_group(user_id, photos)
+                        else:
+                            bot.send_photo(user_id, photo=data[0])
+
+                        for photo in data:
+                            dbworker.set_photos((
+                                hotel['hotel_id'],
+                                photo
+                            ))
+
+                    bot.send_message(user_id, text)
+                    bot.send_message(user_id, f'Топ {hotel_count}')
+
+                if data:
+                    bot.send_message(user_id, 'Готово!')
+                else:
+                    bot.send_message(user_id, 'К сожалению, такие отели не найдены ((')
+                bot.set_state(user_id, None, chat_id)
 
         except ValueError:
             stop_iter -= 1

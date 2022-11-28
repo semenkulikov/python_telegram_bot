@@ -1,5 +1,5 @@
 from loader import bot
-from telebot.types import Message
+from telebot.types import Message, InputMediaPhoto
 from handlers.custom_heandlers.work import dbworker
 
 
@@ -9,18 +9,24 @@ def history(message: Message) -> None:
     if history_info:
         for record in history_info:
             uid = record[0]
-            string = f'Дата и время запроса: {record[1]}' \
-                     f'\nКоманда: {record[3]}' \
-                     f'\nГород: {record[2]}'
-            bot.send_message(chat_id=message.chat.id, text=string)
+            text = f'Дата и время запроса: {record[2]}' \
+                   f'\nКоманда: {record[4]}' \
+                   f'\nГород: {record[3]}\n'
             hotels = dbworker.get_hotels(uid=uid)
             if hotels:
-                for hotel in hotels:
-                    bot.send_message(chat_id=message.chat.id,
-                                     text=f"Название отеля: {hotel[3]}\n"
-                                          f"Адрес: {hotel[3]}"
-                                          f"\nСсылка: {hotel[5]}"
-                                          f"\n1Цена за сутки: {hotel[4]} RUB",
-                                     disable_web_page_preview=True)
+                text += '\nНайденные отели:\n'
+                for i, hotel in enumerate(hotels):
+                    hotel_id = hotel[1]
+                    photos = dbworker.get_photos(hotel_id=hotel_id)
+                    text += f"\n{i + 1}.\nНазвание отеля: {hotel[2]}\n"\
+                            f"Адрес: {hotel[3]}"\
+                            f"\nСсылка: {hotel[5]}"\
+                            f"\nЦена за сутки: {hotel[4]} RUB\n"
+                    bot.send_message(message.from_user.id, text=text)
+                    if photos:
+                        bot.send_message(message.from_user.id, 'Фото отеля:\n')
+                        for photo in photos:
+                            bot.send_photo(message.from_user.id, photo=photo)
+
     else:
         bot.send_message(chat_id=message.chat.id, text='Записей не найдено')
