@@ -10,8 +10,8 @@ import datetime
 
 
 @bot.message_handler(commands=['bestdeal'])
-def send_lowprice(message: Message) -> None:
-    bot.set_state(message.from_user.id, HotelPriceState.city, message.chat.id)
+def send_bestdeal(message: Message) -> None:
+    bot.set_state(message.from_user.id, HotelBestPriceState.city, message.chat.id)
     bot.send_message(message.from_user.id,
                      f'Привет, {message.from_user.first_name}, напиши город, где будем искать отели')
     with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
@@ -27,17 +27,21 @@ def get_city(message: Message, stop_iter=5) -> None:
     if stop_iter:
         try:
             city = message.text
+            with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
+                hotels_data['city'] = message.text
             answer = request_by_city(city)
 
             bot.send_message(message.from_user.id,
                              f'Уточни, пожалуйста:', reply_markup=city_markup(answer))
             bot.set_state(message.from_user.id, HotelBestPriceState.check_city, message.chat.id)
-        except ValueError as exc:
-            bot.send_message(message.from_user.id, exc)
+        except ValueError:
             stop_iter -= 1
             get_city(message, stop_iter=stop_iter)
         except PermissionError as exc:
             bot.send_message(message.from_user.id, exc)
+    else:
+        bot.send_message(message.from_user.id, 'Не удалось связаться с сервером. Проверь соединение с интернетом')
+        bot.send_message(message.from_user.id, None, message.chat.id)
 
 
 @bot.callback_query_handler(func=None, state=HotelBestPriceState.check_city)
