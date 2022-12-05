@@ -26,12 +26,14 @@ def get_city(message: Message, stop_iter=5) -> None:
             bot.send_message(message.from_user.id,
                              f'Уточни, пожалуйста:', reply_markup=city_markup(answer))
             bot.set_state(message.from_user.id, HotelPriceState.check_city, message.chat.id)
-        except ValueError as exc:
-            bot.send_message(message.from_user.id, exc)
+        except ValueError:
             stop_iter -= 1
             get_city(message, stop_iter=stop_iter)
         except PermissionError as exc:
             bot.send_message(message.from_user.id, exc)
+    else:
+        bot.send_message(message.from_user.id, 'Не удалось связаться с сервером. Проверь соединение с интернетом')
+        bot.send_message(message.from_user.id, None, message.chat.id)
 
 
 @bot.callback_query_handler(func=None, state=HotelPriceState.check_city)
@@ -141,8 +143,8 @@ def count_photos(call) -> None:
     bot.set_state(call.message.chat.id, HotelPriceState.info, call.message.chat.id)
     with bot.retrieve_data(call.message.chat.id, call.message.chat.id) as hotels_data:
         command = hotels_data['command']
-        sort_order = 'PRICE_HIGHEST_FIRST' \
-            if command == '/highprice' else 'PRICE' \
-            if command == '/lowprice' else 'DISTANCE_FROM_LANDMARK'
+        sort_order = 'PRICE_RELEVANT' \
+            if command == '/highprice' else 'PRICE_LOW_TO_HIGH' \
+            if command == '/lowprice' else 'DISTANCE'
     get_search_results(call.message, count_photos=int(call.data), sort_order=sort_order,
                        call_chat_id=call.message.chat.id)
