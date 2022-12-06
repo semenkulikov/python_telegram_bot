@@ -53,7 +53,7 @@ def request_by_city(city_name: str) -> List:
         raise ValueError('Упс! Что-то пошло не так. Погоди, сейчас исправлю')
 
 
-def request_hotels(user_id, chat_id, sort_order):
+def request_hotels(user_id, chat_id, sort_order, is_reverse=False):
     """
     Функция для обработки второго запроса по отелям. Возвращает словарь, где ключ - имя отеля,
     значение - словарь с такими ключами - [id, адрес, расстояние от центра, цена, суммарная цена, рейтинг, ссылка]
@@ -103,7 +103,8 @@ def request_hotels(user_id, chat_id, sort_order):
             if 'errors' in response.keys():
                 raise ValueError
             result = response['data']['propertySearch']['properties']
-
+            if is_reverse:
+                result.reverse()
             for hotel in result:
                 name = hotel['name']
 
