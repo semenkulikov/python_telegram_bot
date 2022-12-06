@@ -143,8 +143,12 @@ def count_photos(call) -> None:
     bot.set_state(call.message.chat.id, HotelPriceState.info, call.message.chat.id)
     with bot.retrieve_data(call.message.chat.id, call.message.chat.id) as hotels_data:
         command = hotels_data['command']
-        sort_order = 'PRICE_RELEVANT' \
-            if command == '/highprice' else 'PRICE_LOW_TO_HIGH' \
-            if command == '/lowprice' else 'DISTANCE'
-    get_search_results(call.message, count_photos=int(call.data), sort_order=sort_order,
-                       call_chat_id=call.message.chat.id)
+        sort_order = 'PRICE_LOW_TO_HIGH' \
+            if command == '/highprice' or command == '/lowprice' \
+            else 'DISTANCE'
+    if command == '/lowprice' or command == '/bestdeal':
+        get_search_results(call.message, count_photos=int(call.data), sort_order=sort_order,
+                           call_chat_id=call.message.chat.id)
+    else:
+        get_search_results(call.message, count_photos=int(call.data), sort_order=sort_order,
+                           call_chat_id=call.message.chat.id, is_reverse=True)

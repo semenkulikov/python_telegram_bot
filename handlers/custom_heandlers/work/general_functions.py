@@ -14,10 +14,12 @@ def get_search_results(
         count_photos=0,
         stop_iter=5,
         sort_order="PRICE_LOW_TO_HIGH",
-        call_chat_id=None) -> None:
+        call_chat_id=None,
+        is_reverse=False) -> None:
     """
     Хендлер для вывода информации
 
+    :param is_reverse: реверсивный вывод отелей в случае команды /highprice
     :param call_chat_id: Нужен для того, чтобы правильно открывать контекстовый мессенджер
     :param sort_order: режим запроса
     :param message: сообщение юзера
@@ -36,7 +38,10 @@ def get_search_results(
         try:
             with bot.retrieve_data(user_id, chat_id) as hotels_data:
                 start = time.time()
-                data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order)
+                if is_reverse:
+                    data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order, is_reverse=True)
+                else:
+                    data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order)
                 stop = time.time()
                 time_out = round(stop - start)
                 hotel_count = 0

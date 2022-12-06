@@ -15,14 +15,15 @@ def history(message: Message) -> None:
             hotels = dbworker.get_hotels(uid=uid)
             if hotels:
                 text += '\nНайденные отели:\n'
+                bot.send_message(message.from_user.id, text)
                 for i, hotel in enumerate(hotels):
                     hotel_id = hotel[1]
                     photos = [InputMediaPhoto(elem[0]) for elem in dbworker.get_photos(hotel_id=hotel_id)]
-                    text += f"\n{i + 1}.\nНазвание отеля: {hotel[2]}\n"\
+                    text_hotel = f"\n{i + 1}.\nНазвание отеля: {hotel[2]}\n"\
                             f"Адрес: {hotel[3]}"\
                             f"\nСсылка: {hotel[5]}"\
                             f"\nЦена за сутки: {hotel[4]} USD\n"
-                    bot.send_message(message.from_user.id, text=text)
+                    bot.send_message(message.from_user.id, text=text_hotel)
                     if photos:
                         bot.send_message(message.from_user.id, 'Фото отеля:\n')
                         if len(photos) >= 2:
@@ -32,7 +33,6 @@ def history(message: Message) -> None:
             else:
                 bot.send_message(message.from_user.id, text=text)
                 bot.send_message(message.from_user.id, 'Отелей не найдено')
-            text = ''
 
     else:
         bot.send_message(chat_id=message.chat.id, text='Записей не найдено')
