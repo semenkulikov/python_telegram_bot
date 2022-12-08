@@ -58,7 +58,7 @@ def check_city(call) -> None:
         hotels_data['city_id'] = call.data
 
     bot.send_message(call.message.chat.id,
-                     'Окей! Укажи минимальную цену за ночь')
+                     'Окей! Укажи минимальную цену за ночь ($)')
     bot.set_state(call.message.chat.id, HotelBestPriceState.price_min)
 
 
@@ -69,7 +69,7 @@ def price_min(message: Message) -> None:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
             if int(message.text) >= 0:
                 hotels_data['price_min'] = int(message.text)
-                bot.send_message(message.from_user.id, 'Хорошо, теперь укажи максимальную цену')
+                bot.send_message(message.from_user.id, 'Хорошо, теперь укажи максимальную цену ($)')
                 bot.set_state(message.from_user.id, HotelBestPriceState.price_max, message.chat.id)
             else:
                 bot.send_message(message.from_user.id, 'Некорректная цена!')

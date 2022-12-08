@@ -44,7 +44,15 @@ def get_search_results(
                     data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order)
                 stop = time.time()
                 time_out = round(stop - start)
-                hotel_count = 0
+                hotel_count = -1
+                flag_distance_list = [
+                    False
+                    if int(hotels_data["distance_min"]) <= int(elem['distance']) <= int(hotels_data["distance_max"])
+                    else True
+                    for elem in data.values()]
+
+                if all(flag_distance_list):  # Если все отели не совпадают по диапазону расстояний, то обнуляем data
+                    data = {}
 
                 dbworker.set_history((
                     hotels_data['city_id'],
@@ -56,23 +64,28 @@ def get_search_results(
 
                 for name, hotel in data.items():
                     hotel_count += 1
+
+                    if flag_distance_list[hotel_count]:  # Если данный отель не совпадает по расстоянию, то пропускаем
+                        bot.send_message(user_id, 'Данный отель не подходит по диапазону расстояний')
+                        continue
+
                     text = f'Имя отеля: {name}\n' \
                            f'Id отеля: {hotel["hotel_id"]}\n' \
                            f'Адрес: {hotel["address"]}\n'
+
+                    text += f'Диапазон расстояний: от {hotels_data["distance_min"]} до ' \
+                            f'{hotels_data["distance_max"]}\n'\
+                        if "distance_min" in hotels_data.keys() else ''
 
                     text += f'Расстояние от центра города: {hotel["distance"]} км\n'
 
                     text += f'Диапазон цен: от {hotels_data["price_min"]} до {hotels_data["price_max"]}\n' \
                         if "price_min" in hotels_data.keys() else ''
 
-                    text += f'Диапазон расстояний: от {hotels_data["distance_min"]} до ' \
-                            f'{hotels_data["distance_max"]}\n'\
-                        if "distance_min" in hotels_data.keys() else ''
-
-                    text += f'На сколько дней бронируем: {hotel["total_days"]}\n'
-
                     text += f'Цена за ночь: ${int(hotel["price"]):,d} ({(hotel["price"] * 62):,d} рублей)\n' \
                         if hotel['price'] is not None else ''
+
+                    text += f'На сколько дней бронируем: {hotel["total_days"]}\n'
 
                     text += f'Суммарная цена: ${hotel["total_price"]:,d} ({(hotel["total_price"] * 62):,d} рублей)\n' \
                         if hotel['price'] is not None else ''
@@ -104,7 +117,7 @@ def get_search_results(
                             ))
 
                     bot.send_message(user_id, text)
-                    bot.send_message(user_id, f'Топ {hotel_count}')
+                    bot.send_message(user_id, f'Топ {hotel_count + 1}')
 
                 if data:
                     bot.send_message(user_id, 'Готово!')
@@ -113,10 +126,7 @@ def get_search_results(
                 bot.send_message(user_id, f'Время выполнения запроса: {time_out} сек.')
                 bot.set_state(user_id, None, chat_id)
 
-        except ValueError:
-            stop_iter -= 1
-            get_search_results(message, count_photos=count_photos, stop_iter=stop_iter, call_chat_id=call_chat_id)
-        except FileNotFoundError:
+        except Exception:
             stop_iter -= 1
             get_search_results(message, count_photos=count_photos, stop_iter=stop_iter, call_chat_id=call_chat_id)
     else:
