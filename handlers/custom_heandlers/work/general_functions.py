@@ -47,7 +47,7 @@ def get_search_results(
                 hotel_count = -1
                 flag_distance_list = [
                     False
-                    if int(hotels_data["distance_min"]) <= int(elem['distance']) <= int(hotels_data["distance_max"])
+                    if int(elem['distance']) <= int(hotels_data["distance_max"])
                     else True
                     for elem in data.values()]
 
@@ -66,20 +66,20 @@ def get_search_results(
                     hotel_count += 1
 
                     if flag_distance_list[hotel_count]:  # Если данный отель не совпадает по расстоянию, то пропускаем
-                        bot.send_message(user_id, 'Данный отель не подходит по диапазону расстояний')
+                        bot.send_message(user_id, f'{hotel_count + 1} отель не подходит по диапазону расстояний')
                         continue
 
                     text = f'Имя отеля: {name}\n' \
                            f'Id отеля: {hotel["hotel_id"]}\n' \
                            f'Адрес: {hotel["address"]}\n'
 
-                    text += f'Диапазон расстояний: от {hotels_data["distance_min"]} до ' \
+                    text += f'Диапазон расстояний: от 0 до ' \
                             f'{hotels_data["distance_max"]}\n'\
-                        if "distance_min" in hotels_data.keys() else ''
+                        if "distance_max" in hotels_data.keys() else ''
 
                     text += f'Расстояние от центра города: {hotel["distance"]} км\n'
 
-                    text += f'Диапазон цен: от {hotels_data["price_min"]} до {hotels_data["price_max"]}\n' \
+                    text += f'Диапазон цен: от ${hotels_data["price_min"]} до ${hotels_data["price_max"]}\n' \
                         if "price_min" in hotels_data.keys() else ''
 
                     text += f'Цена за ночь: ${int(hotel["price"]):,d} ({(hotel["price"] * 62):,d} рублей)\n' \

@@ -84,22 +84,10 @@ def price_max(message: Message) -> None:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
             if int(message.text) > hotels_data['price_min']:
                 hotels_data['price_max'] = int(message.text)
-                bot.send_message(message.from_user.id, 'Таак, напиши минимальное расстояние от центра города')
-                bot.set_state(message.from_user.id, HotelBestPriceState.distance_min, message.chat.id)
+                bot.send_message(message.from_user.id, 'Таак, напиши максимальное расстояние от центра города')
+                bot.set_state(message.from_user.id, HotelBestPriceState.distance_max, message.chat.id)
             else:
                 bot.send_message(message.from_user.id, 'Некорректная цена!')
-    except (TypeError, ValueError):
-        bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
-
-
-@bot.message_handler(state=HotelBestPriceState.distance_min)
-def distance_min(message: Message) -> None:
-    """ Хендлер для получения минимального расстояния """
-    try:
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
-            hotels_data['distance_min'] = message.text
-            bot.send_message(message.from_user.id, 'Теперь отправь мне максимальное расстояние')
-            bot.set_state(message.from_user.id, HotelBestPriceState.distance_max, message.chat.id)
     except (TypeError, ValueError):
         bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
 
@@ -109,12 +97,9 @@ def distance_min(message: Message) -> None:
     """ Хендлер для получения максимального расстояния """
     try:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
-            if int(message.text) >= int(hotels_data['distance_min']):
-                hotels_data['distance_max'] = message.text
-                bot.send_message(message.from_user.id, 'Окей! Когда заезжаем в отель?')
-                bot.set_state(message.from_user.id, HotelPriceState.check_in, message.chat.id)
-                create_calendar(message)
-            else:
-                bot.send_message(message.from_user.id, 'Максимальное расстояние должно быть больше минимального!')
+            hotels_data['distance_max'] = message.text
+            bot.send_message(message.from_user.id, 'Окей! Когда заезжаем в отель?')
+            bot.set_state(message.from_user.id, HotelPriceState.check_in, message.chat.id)
+            create_calendar(message)
     except (TypeError, ValueError):
         bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
