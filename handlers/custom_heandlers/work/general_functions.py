@@ -12,7 +12,7 @@ from handlers.custom_heandlers.work import dbworker
 def get_search_results(
         message: Message,
         count_photos=0,
-        stop_iter=5,
+        stop_iter=2,
         sort_order="PRICE_LOW_TO_HIGH",
         call_chat_id=None,
         is_reverse=False) -> None:
@@ -49,9 +49,10 @@ def get_search_results(
                     False
                     if int(elem['distance']) <= int(hotels_data["distance_max"])
                     else True
-                    for elem in data.values()]
+                    for elem in data.values()
+                    if 'distance_max' in hotels_data.keys()]
 
-                if all(flag_distance_list):  # Если все отели не совпадают по диапазону расстояний, то обнуляем data
+                if all(flag_distance_list) and flag_distance_list:
                     data = {}
 
                 dbworker.set_history((
@@ -65,16 +66,17 @@ def get_search_results(
                 for name, hotel in data.items():
                     hotel_count += 1
 
-                    if flag_distance_list[hotel_count]:  # Если данный отель не совпадает по расстоянию, то пропускаем
-                        bot.send_message(user_id, f'{hotel_count + 1} отель не подходит по диапазону расстояний')
-                        continue
+                    if flag_distance_list:
+                        if flag_distance_list[hotel_count]:
+                            bot.send_message(user_id, f'{hotel_count + 1} отель не подходит по диапазону расстояний')
+                            continue
 
                     text = f'Имя отеля: {name}\n' \
                            f'Id отеля: {hotel["hotel_id"]}\n' \
                            f'Адрес: {hotel["address"]}\n'
 
                     text += f'Диапазон расстояний: от 0 до ' \
-                            f'{hotels_data["distance_max"]}\n'\
+                            f'{hotels_data["distance_max"]}\n' \
                         if "distance_max" in hotels_data.keys() else ''
 
                     text += f'Расстояние от центра города: {hotel["distance"]} км\n'

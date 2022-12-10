@@ -138,7 +138,7 @@ def count_photos(call) -> None:
     """ Коллбэк для получения количества фотографий """
     bot.edit_message_text(chat_id=call.message.chat.id,
                           message_id=call.message.id,
-                          text=f'Показать изображений: {call.data}')
+                          text=f'Показать изображений для каждого отеля: {call.data}')
     bot.send_message(call.message.chat.id, 'Подожди ... Идет загрузка ...')
     bot.set_state(call.message.chat.id, HotelPriceState.info, call.message.chat.id)
     with bot.retrieve_data(call.message.chat.id, call.message.chat.id) as hotels_data:
