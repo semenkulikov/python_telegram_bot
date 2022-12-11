@@ -79,8 +79,7 @@ def request_hotels(user_id, chat_id, sort_order, is_reverse=False):
             },
             "rooms": [
                 {
-                    "adults": 2,
-                    "children": [{"age": 5}, {"age": 7}]
+                    "adults": 1
                 }
             ],
             "resultsStartingIndex": 0,
@@ -117,7 +116,7 @@ def request_hotels(user_id, chat_id, sort_order, is_reverse=False):
                 data[name] = {
                     'hotel_id': hotel['id'],
                     'address': address,
-                    'distance': round(int(hotel['destinationInfo']['distanceFromDestination']['value']) * 1.609344),
+                    'distance': int(hotel['destinationInfo']['distanceFromDestination']['value']),
                     'total_days': total_days,
                     'price': price,
                     'total_price': total_price,
@@ -163,7 +162,3 @@ def requests_photos(hotel_id) -> tuple[Any, list[Any]]:
         return address, photos_list
     except (LookupError, TypeError, AttributeError):
         raise ValueError('Упс! Что-то пошло не так. Погоди, сейчас исправлю')
-
-
-# def sort_high_to_low(data):
-#     return sorted(data, key=lambda x: x['price']['lead']['amount'])
