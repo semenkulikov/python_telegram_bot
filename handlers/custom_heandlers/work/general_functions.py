@@ -1,5 +1,7 @@
+import time
+
 from telebot.types import Message, InputMediaPhoto
-from handlers.custom_heandlers.work.request_to_api import request_hotels, requests_photos
+from handlers.custom_heandlers.work.request_to_api import request_hotels
 from loader import bot
 from states.hotel_info import HotelPriceState
 
@@ -7,10 +9,17 @@ from handlers.custom_heandlers.work import dbworker
 
 
 @bot.message_handler(state=HotelPriceState.info)
-def get_search_results(message: Message, count_photos=0, stop_iter=5, sort_order="PRICE", call_chat_id=None) -> None:
+def get_search_results(
+        message: Message,
+        count_photos=0,
+        stop_iter=2,
+        sort_order="PRICE_LOW_TO_HIGH",
+        call_chat_id=None,
+        is_reverse=False) -> None:
     """
     Хендлер для вывода информации
 
+    :param is_reverse: реверсивный вывод отелей в случае команды /highprice
     :param call_chat_id: Нужен для того, чтобы правильно открывать контекстовый мессенджер
     :param sort_order: режим запроса
     :param message: сообщение юзера
@@ -28,8 +37,23 @@ def get_search_results(message: Message, count_photos=0, stop_iter=5, sort_order
     if stop_iter:
         try:
             with bot.retrieve_data(user_id, chat_id) as hotels_data:
-                data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order)
-                hotel_count = 0
+                start = time.time()
+                if is_reverse:
+                    data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order, is_reverse=True)
+                else:
+                    data = request_hotels(user_id=user_id, chat_id=chat_id, sort_order=sort_order)
+                stop = time.time()
+                time_out = round(stop - start)
+                hotel_count = -1
+                flag_distance_list = [
+                    False
+                    if int(elem['distance']) <= int(hotels_data["distance_max"])
+                    else True
+                    for elem in data.values()
+                    if 'distance_max' in hotels_data.keys()]
+
+                if all(flag_distance_list) and flag_distance_list:
+                    data = {}
 
                 dbworker.set_history((
                     hotels_data['city_id'],
@@ -41,25 +65,31 @@ def get_search_results(message: Message, count_photos=0, stop_iter=5, sort_order
 
                 for name, hotel in data.items():
                     hotel_count += 1
+
+                    if flag_distance_list:
+                        if flag_distance_list[hotel_count]:
+                            bot.send_message(user_id, f'{hotel_count + 1} отель не подходит по диапазону расстояний')
+                            continue
+
                     text = f'Имя отеля: {name}\n' \
                            f'Id отеля: {hotel["hotel_id"]}\n' \
                            f'Адрес: {hotel["address"]}\n'
-                    for distance in hotel['distance']:
-                        text += f'Расстояние от {distance[0]} - {distance[1]}\n'
 
-                        text += f'Диапазон цен: от {hotels_data["price_min"]} до {hotels_data["price_max"]}\n' \
-                            if "price_min" in hotels_data.keys() else ''
+                    text += f'Диапазон расстояний: от 0 до ' \
+                            f'{hotels_data["distance_max"]}\n' \
+                        if "distance_max" in hotels_data.keys() else ''
 
-                        text += f'Диапазон расстояний: от {hotels_data["distance_min"]} до ' \
-                                f'{hotels_data["distance_max"]}\n'\
-                            if "distance_min" in hotels_data.keys() else ''
+                    text += f'Расстояние от центра города: {hotel["distance"]} км\n'
 
-                    text += f'На сколько дней бронируем: {hotel["total_days"].days}\n'
+                    text += f'Диапазон цен: от ${hotels_data["price_min"]} до ${hotels_data["price_max"]}\n' \
+                        if "price_min" in hotels_data.keys() else ''
 
-                    text += f'Цена за ночь: {int(hotel["price"]):,d} рублей\n' \
+                    text += f'Цена за ночь: ${int(hotel["price"]):,d} ({(hotel["price"] * 62):,d} рублей)\n' \
                         if hotel['price'] is not None else ''
 
-                    text += f'Суммарная цена: {hotel["total_price"]:,d} рублей\n' \
+                    text += f'На сколько дней бронируем: {hotel["total_days"]}\n'
+
+                    text += f'Суммарная цена: ${hotel["total_price"]:,d} ({(hotel["total_price"] * 62):,d} рублей)\n' \
                         if hotel['price'] is not None else ''
 
                     text += f'Рейтинг: {hotel["rating"]}\n' \
@@ -75,34 +105,29 @@ def get_search_results(message: Message, count_photos=0, stop_iter=5, sort_order
                     ))
 
                     if count_photos:
-                        data = requests_photos(
-                            hotel_id=hotel["hotel_id"],
-                            max_photos=count_photos
-                        )
-                        photos = [InputMediaPhoto(elem) for elem in data]
+                        data_ph = hotel['photos'][:count_photos]
+                        photos = [InputMediaPhoto(elem) for elem in data_ph]
                         if len(photos) >= 2:
                             bot.send_media_group(user_id, photos)
                         else:
-                            bot.send_photo(user_id, photo=data[0])
+                            bot.send_photo(user_id, photo=data_ph[0])
 
-                        for photo in data:
+                        for photo in data_ph:
                             dbworker.set_photos((
                                 hotel['hotel_id'],
                                 photo
                             ))
 
                     bot.send_message(user_id, text)
-                    bot.send_message(user_id, f'Топ {hotel_count}')
+                    bot.send_message(user_id, f'Топ {hotel_count + 1}')
 
                 if data:
                     bot.send_message(user_id, 'Готово!')
                 else:
                     bot.send_message(user_id, 'К сожалению, такие отели не найдены ((')
+                bot.send_message(user_id, f'Время выполнения запроса: {time_out} сек.')
                 bot.set_state(user_id, None, chat_id)
 
-        except ValueError:
-            stop_iter -= 1
-            get_search_results(message, count_photos=count_photos, stop_iter=stop_iter, call_chat_id=call_chat_id)
         except Exception:
             stop_iter -= 1
             get_search_results(message, count_photos=count_photos, stop_iter=stop_iter, call_chat_id=call_chat_id)
