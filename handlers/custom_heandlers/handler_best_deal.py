@@ -5,6 +5,7 @@ from telebot.types import Message
 from keyboards.inline.cities_list import city_markup
 from handlers.custom_heandlers.work.request_to_api import request_by_city
 from keyboards.inline.create_calendar import create_calendar
+from keyboards.inline.metric_system import distance
 
 import datetime
 
@@ -93,13 +94,27 @@ def price_max(message: Message) -> None:
 
 
 @bot.message_handler(state=HotelBestPriceState.distance_max)
-def distance_min(message: Message) -> None:
+def distance_max(message: Message) -> None:
     """ Хендлер для получения максимального расстояния """
     try:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as hotels_data:
             hotels_data['distance_max'] = message.text
-            bot.send_message(message.from_user.id, 'Окей! Когда заезжаем в отель?')
-            bot.set_state(message.from_user.id, HotelPriceState.check_in, message.chat.id)
-            create_calendar(message)
+            bot.send_message(message.from_user.id, 'Хорошо, а в чем его измерять?', reply_markup=distance())
+            bot.set_state(message.from_user.id, HotelBestPriceState.metric_system, message.chat.id)
+
     except (TypeError, ValueError):
         bot.send_message(message.from_user.id, 'Твой ответ должен быть числом')
+
+
+@bot.callback_query_handler(func=None, state=HotelBestPriceState.metric_system)
+def metric_system(call):
+    """ Обработчик inline кнопок, запоминает метрическую систему расстояний """
+    with bot.retrieve_data(call.message.chat.id, call.message.chat.id) as hotels_data:
+        hotels_data['metric'] = call.data
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          message_id=call.message.id,
+                          text=f'Мера длины: {call.data.split()[2]}')
+    bot.send_message(call.message.chat.id,
+                     'Окей! Когда заезжаем в отель?')
+    create_calendar(call.message)
+    bot.set_state(call.message.chat.id, HotelPriceState.check_in)

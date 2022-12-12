@@ -79,7 +79,11 @@ def get_search_results(
                             f'{hotels_data["distance_max"]}\n' \
                         if "distance_max" in hotels_data.keys() else ''
 
-                    text += f'Расстояние от центра города: {hotel["distance"]} км\n'
+                    metric_list = hotels_data["metric"].split()
+                    metric, value = metric_list[0], metric_list[1]
+
+                    text += f'Расстояние от центра города: ' \
+                            f'{round(hotel["distance"] * float(value))} {metric}\n'
 
                     text += f'Диапазон цен: от ${hotels_data["price_min"]} до ${hotels_data["price_max"]}\n' \
                         if "price_min" in hotels_data.keys() else ''
